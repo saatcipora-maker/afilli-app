@@ -1,0 +1,899 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /social-settings:
+    get:
+      operationId: getSocialSettings
+      responses:
+        "200": { description: Public configuration, content: { application/json: { schema: { $ref: "#/components/schemas/SocialSettings" } } } }
+    put:
+      operationId: updateSocialSettings
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SocialSettings" } } }
+      responses:
+        "200": { description: Administrator configuration, content: { application/json: { schema: { $ref: "#/components/schemas/SocialSettings" } } } }
+  /my-profile:
+    get:
+      operationId: getMyProfile
+      responses:
+        "200": { description: Own profile, content: { application/json: { schema: { $ref: "#/components/schemas/ReaderProfile" } } } }
+    patch:
+      operationId: updateMyProfile
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ProfileEditInput" } } }
+      responses:
+        "200": { description: Saved profile, content: { application/json: { schema: { $ref: "#/components/schemas/ReaderProfile" } } } }
+  /profiles:
+    get:
+      operationId: getPeople
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200": { description: People, content: { application/json: { schema: { $ref: "#/components/schemas/PeoplePage" } } } }
+  /profiles/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getReaderProfile
+      responses:
+        "200": { description: Public profile, content: { application/json: { schema: { $ref: "#/components/schemas/ReaderProfile" } } } }
+  /profiles/{id}/follow:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      operationId: setProfileFollow
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/FollowInput" } } }
+      responses:
+        "200": { description: Updated relation, content: { application/json: { schema: { $ref: "#/components/schemas/ReaderProfile" } } } }
+  /profiles/{id}/connections:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getProfileConnections
+      parameters:
+        - { name: kind, in: query, required: true, schema: { type: string, enum: [followers, following] } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Real connections, content: { application/json: { schema: { $ref: "#/components/schemas/PeoplePage" } } } }
+  /profiles/{id}/content:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getProfileContent
+      parameters:
+        - { name: tab, in: query, required: true, schema: { type: string, enum: [books, bulletins, liked] } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Paginated real content, content: { application/json: { schema: { $ref: "#/components/schemas/ProfileContent" } } } }
+  /presence:
+    post:
+      operationId: updatePresence
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PresenceInput" } } }
+      responses: { "204": { description: Foreground presence recorded } }
+  /profile-uploads:
+    post:
+      operationId: requestProfileUpload
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ProfileUploadInput" } } }
+      responses:
+        "200": { description: Direct upload, content: { application/json: { schema: { $ref: "#/components/schemas/ProfileUpload" } } } }
+  /profile-media/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getProfileMedia
+      responses:
+        "200": { description: Attached profile image, content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+  /conversations:
+    get:
+      operationId: getConversations
+      responses:
+        "200": { description: Own conversations only, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Conversation" } } } } }
+    post:
+      operationId: startConversation
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/StartConversationInput" } } }
+      responses:
+        "200": { description: Conversation, content: { application/json: { schema: { $ref: "#/components/schemas/Conversation" } } } }
+  /conversations/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getConversation
+      responses:
+        "200": { description: Own conversation, content: { application/json: { schema: { $ref: "#/components/schemas/Conversation" } } } }
+  /conversations/{id}/messages:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getConversationMessages
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Latest first, content: { application/json: { schema: { $ref: "#/components/schemas/MessagePage" } } } }
+    post:
+      operationId: sendConversationMessage
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MessageInput" } } }
+      responses:
+        "201": { description: Sent once, content: { application/json: { schema: { $ref: "#/components/schemas/DirectMessage" } } } }
+  /conversations/{id}/read:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      operationId: readConversation
+      responses: { "204": { description: Read by recipient } }
+  /conversations/{id}/typing:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      operationId: setConversationTyping
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/TypingInput" } } }
+      responses: { "204": { description: Participant typing recorded } }
+  /social-notifications:
+    get:
+      operationId: getSocialNotifications
+      responses:
+        "200": { description: Own social notifications, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/SocialNotification" } } } } }
+  /social-notifications/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: readSocialNotification
+      responses: { "204": { description: Read by owner } }
+  /community-profile:
+    post:
+      operationId: saveCommunityProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CommunityProfileInput" }
+      responses:
+        "200": { description: Profile, content: { application/json: { schema: { $ref: "#/components/schemas/CommunityPerson" } } } }
+  /bulletins:
+    get:
+      operationId: getBulletins
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200": { description: Feed, content: { application/json: { schema: { $ref: "#/components/schemas/BulletinFeed" } } } }
+    post:
+      operationId: createBulletin
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/BulletinInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Bulletin" } } } }
+  /bulletins/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getBulletin
+      responses:
+        "200": { description: Bulletin, content: { application/json: { schema: { $ref: "#/components/schemas/Bulletin" } } } }
+    patch:
+      operationId: updateBulletin
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/BulletinInput" } } }
+      responses:
+        "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/Bulletin" } } } }
+    delete:
+      operationId: deleteBulletin
+      responses: { "204": { description: Deleted } }
+  /bulletins/{id}/like:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      operationId: setBulletinLike
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulletinLikeInput" }
+      responses:
+        "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/Bulletin" } } } }
+  /bulletins/{id}/likes:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getBulletinLikes
+      responses:
+        "200": { description: People, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/CommunityPerson" } } } } }
+  /bulletins/{id}/comments:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getBulletinComments
+      responses:
+        "200": { description: Comments, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/BulletinComment" } } } } }
+    post:
+      operationId: createBulletinComment
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/BulletinCommentInput" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/BulletinComment" } } } }
+  /bulletin-comments/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: updateBulletinComment
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/BulletinCommentInput" } } }
+      responses:
+        "200": { description: Updated, content: { application/json: { schema: { $ref: "#/components/schemas/BulletinComment" } } } }
+    delete:
+      operationId: deleteBulletinComment
+      responses: { "204": { description: Deleted } }
+  /bulletin-reactions:
+    get:
+      operationId: getBulletinReactionPeople
+      parameters:
+        - { name: targetId, in: query, required: true, schema: { type: string } }
+        - { name: targetType, in: query, required: true, schema: { type: string, enum: [post, comment] } }
+      responses:
+        "200": { description: People, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/BulletinReactionPerson" } } } } }
+    put:
+      operationId: setBulletinReaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulletinReactionInput" }
+      responses:
+        "200": { description: Reactions, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/BulletinReaction" } } } } }
+  /authored-books:
+    get:
+      operationId: getAuthoredBooks
+      responses:
+        "200": { description: Own books only, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/AuthoredBook" } } } } }
+    post:
+      operationId: saveAuthoredBook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AuthoredBookInput" }
+      responses:
+        "200": { description: Saved, content: { application/json: { schema: { $ref: "#/components/schemas/AuthoredBook" } } } }
+  /authored-books/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getAuthoredBook
+      responses:
+        "200": { description: Book, content: { application/json: { schema: { $ref: "#/components/schemas/AuthoredBook" } } } }
+  /bulletin-notifications:
+    get:
+      operationId: getBulletinNotifications
+      responses:
+        "200": { description: Notifications, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/BulletinNotification" } } } } }
+  /bulletin-notifications/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: readBulletinNotification
+      responses: { "204": { description: Read } }
+  /bulletin-uploads:
+    post:
+      operationId: requestBulletinUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulletinUploadInput" }
+      responses:
+        "200":
+          description: Direct upload
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, uploadURL]
+                properties: { id: { type: string }, uploadURL: { type: string } }
+  /bulletin-media/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getBulletinMedia
+      responses:
+        "200": { description: Public attached image, content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+  /writer-books:
+    get:
+      operationId: getWriterLibrary
+      responses:
+        "200": { description: Owner's writing library, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/WriterSummary" } } } } }
+  /writer-books/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getWriterBook
+      responses:
+        "200": { description: Private author document, content: { application/json: { schema: { $ref: "#/components/schemas/WriterBook" } } } }
+    put:
+      operationId: saveWriterBook
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/WriterSaveInput" } } }
+      responses:
+        "200": { description: Saved with revision, content: { application/json: { schema: { $ref: "#/components/schemas/WriterBook" } } } }
+        "409": { description: Conflicting device revision; fetch current document before resolving }
+    delete:
+      operationId: deleteWriterBook
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/WriterRevisionInput" } } }
+      responses:
+        "204": { description: Deleted with author confirmation }
+    patch:
+      operationId: patchWriterBook
+      description: Chapter delta against an exact revision. Retry the identical saveId and payload after an uncertain response. Does not publish.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/WriterDeltaInput" } } }
+      responses:
+        "200": { description: Compact durable acknowledgement without manuscript text, content: { application/json: { schema: { $ref: "#/components/schemas/WriterSaveAck" } } } }
+        "409": { description: Revision conflict or saveId reused with different content }
+        "410": { description: Book was deleted and cannot be recreated }
+  /writer-books/{id}/publication:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: changeWriterPublication
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/WriterPublicationInput" } } }
+      responses:
+        "200": { description: Author-controlled publication, content: { application/json: { schema: { $ref: "#/components/schemas/WriterBook" } } } }
+  /published-books:
+    get:
+      operationId: getPublishedBooks
+      responses:
+        "200": { description: Real published books, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/AuthoredBook" } } } } }
+  /writer-presets:
+    get:
+      operationId: getWriterPresets
+      responses:
+        "200": { description: Available original cover artwork, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/WriterPreset" } } } } }
+  /writer-uploads:
+    post:
+      operationId: requestWriterUpload
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/BulletinUploadInput" } } }
+      responses:
+        "200": { description: Private direct upload, content: { application/json: { schema: { $ref: "#/components/schemas/WriterUpload" } } } }
+  /writer-uploads/{id}/reservations/{reservationId}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: reservationId, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      operationId: reserveWriterUpload
+      description: Owner-only indefinite offline protection. The upload ID is its initial reservation. Other devices use their own durable UUIDs.
+      responses:
+        "204": { description: Protected until explicitly released }
+    delete:
+      operationId: releaseWriterUpload
+      description: Owner-only explicit abandonment of this reservation, never an automatic consequence of syncing or going offline. Other reservations and book references remain protected.
+      responses:
+        "204": { description: Reservation released idempotently }
+  /writer-uploads/{id}/complete:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: completeWriterUpload
+      responses:
+        "200": { description: Validated immutable image, content: { application/json: { schema: { $ref: "#/components/schemas/WriterImage" } } } }
+  /writer-media/{id}/access:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getWriterImageAccess
+      responses:
+        "200": { description: Short-lived private display access, content: { application/json: { schema: { $ref: "#/components/schemas/WriterImage" } } } }
+  /writer-spelling:
+    post:
+      operationId: checkWriterSpelling
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/WriterSpellingInput" } } }
+      responses:
+        "200": { description: Turkish dictionary suggestions processed on Afilli's server, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/WriterSpellingIssue" } } } } }
+  /writer-voice:
+    get:
+      operationId: getWriterVoiceStatus
+      responses:
+        "200": { description: Voice service availability, content: { application/json: { schema: { $ref: "#/components/schemas/WriterVoiceStatus" } } } }
+    post:
+      operationId: transcribeWriterVoice
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/WriterVoiceInput" } } }
+      responses:
+        "200": { description: Actual transcription, content: { application/json: { schema: { $ref: "#/components/schemas/WriterSpellingInput" } } } }
+  /authored-books/{id}/like:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      operationId: setAuthoredBookLike
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/WriterLikeInput" } } }
+      responses:
+        "200": { description: Real book reaction, content: { application/json: { schema: { $ref: "#/components/schemas/AuthoredBook" } } } }
+  /authored-books/{id}/comments:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getAuthoredBookComments
+      responses:
+        "200": { description: Latest real comments, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/WriterComment" } } } } }
+    post:
+      operationId: addAuthoredBookComment
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/WriterCommentInput" } } }
+      responses:
+        "200": { description: Added idempotently, content: { application/json: { schema: { $ref: "#/components/schemas/WriterComment" } } } }
+components:
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string } }
+  schemas:
+    SocialSettings:
+      type: object
+      required: [instagramHandle, facebookUrl, xUrl, popularDays, popularLimit]
+      properties:
+        instagramHandle: { type: string, minLength: 1, maxLength: 30 }
+        facebookUrl: { type: string, nullable: true, maxLength: 300 }
+        xUrl: { type: string, nullable: true, maxLength: 300 }
+        popularDays: { type: integer, minimum: 1, maximum: 365 }
+        popularLimit: { type: integer, minimum: 1, maximum: 100 }
+    ReaderProfile:
+      type: object
+      required: [id, nickname, handle, avatar, cover, bio, quote, instagram, bookCount, followersCount, followingCount, following, isMe, isAdmin, online, lastSeen, typing, popular, premium]
+      properties:
+        id: { type: string }
+        nickname: { type: string }
+        handle: { type: string }
+        avatar: { type: string, nullable: true }
+        cover: { type: string, nullable: true }
+        bio: { type: string }
+        quote: { type: string }
+        instagram: { type: string, nullable: true }
+        bookCount: { type: integer }
+        followersCount: { type: integer }
+        followingCount: { type: integer }
+        following: { type: boolean }
+        isMe: { type: boolean }
+        isAdmin: { type: boolean }
+        online: { type: boolean }
+        lastSeen: { type: string, nullable: true }
+        typing: { type: boolean }
+        popular: { type: boolean }
+        premium: { type: boolean }
+    ProfileEditInput:
+      type: object
+      required: [nickname, handle, bio, quote, instagram]
+      properties:
+        nickname: { type: string, minLength: 1, maxLength: 40 }
+        handle: { type: string, minLength: 3, maxLength: 30 }
+        bio: { type: string, maxLength: 500 }
+        quote: { type: string, maxLength: 200 }
+        instagram: { type: string, nullable: true, maxLength: 30 }
+        avatarUploadId: { type: string, nullable: true }
+        coverUploadId: { type: string, nullable: true }
+    PeoplePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/CommunityPerson" } }
+        nextCursor: { type: string, nullable: true }
+    ProfileBook:
+      type: object
+      required: [id, title, author, cover, genre, year, readCount, isPublic]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        author: { $ref: "#/components/schemas/CommunityPerson" }
+        cover: { type: string, nullable: true }
+        genre: { type: string, nullable: true }
+        year: { type: integer, nullable: true }
+        readCount: { type: integer }
+        isPublic: { type: boolean }
+    ProfileContent:
+      type: object
+      required: [books, bulletins, nextCursor]
+      properties:
+        books: { type: array, items: { $ref: "#/components/schemas/ProfileBook" } }
+        bulletins: { type: array, items: { $ref: "#/components/schemas/Bulletin" } }
+        nextCursor: { type: string, nullable: true }
+    ProfileUploadInput:
+      type: object
+      required: [purpose, contentType, size]
+      properties:
+        purpose: { type: string, enum: [avatar, cover] }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        size: { type: integer, minimum: 1, maximum: 10485760 }
+    ProfileUpload:
+      type: object
+      required: [id, uploadURL]
+      properties: { id: { type: string }, uploadURL: { type: string } }
+    FollowInput:
+      type: object
+      required: [following]
+      properties: { following: { type: boolean } }
+    PresenceInput:
+      type: object
+      required: [active]
+      properties: { active: { type: boolean } }
+    TypingInput:
+      type: object
+      required: [typing]
+      properties: { typing: { type: boolean } }
+    StartConversationInput:
+      type: object
+      required: [peerId]
+      properties: { peerId: { type: string } }
+    MessageInput:
+      type: object
+      required: [clientId, body]
+      properties:
+        clientId: { type: string, format: uuid }
+        body: { type: string, minLength: 1, maxLength: 4000 }
+    Conversation:
+      type: object
+      required: [id, peer, lastMessage, updatedAt, unreadCount, peerTyping, peerOnline, peerLastSeen]
+      properties:
+        id: { type: string }
+        peer: { $ref: "#/components/schemas/CommunityPerson" }
+        lastMessage: { type: string, nullable: true }
+        updatedAt: { type: string }
+        unreadCount: { type: integer }
+        peerTyping: { type: boolean }
+        peerOnline: { type: boolean }
+        peerLastSeen: { type: string, nullable: true }
+    DirectMessage:
+      type: object
+      required: [id, threadId, sender, body, createdAt, readAt]
+      properties:
+        id: { type: string }
+        threadId: { type: string }
+        sender: { $ref: "#/components/schemas/CommunityPerson" }
+        body: { type: string }
+        createdAt: { type: string }
+        readAt: { type: string, nullable: true }
+    MessagePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/DirectMessage" } }
+        nextCursor: { type: string, nullable: true }
+    SocialNotification:
+      type: object
+      required: [id, body, read, createdAt, actorId, threadId, bookId]
+      properties:
+        id: { type: string }
+        body: { type: string }
+        read: { type: boolean }
+        createdAt: { type: string }
+        actorId: { type: string }
+        threadId: { type: string, nullable: true }
+        bookId: { type: string, nullable: true }
+    CommunityProfileInput:
+      type: object
+      required: [nickname]
+      properties: { nickname: { type: string, minLength: 1, maxLength: 40 } }
+    BulletinLikeInput:
+      type: object
+      required: [liked]
+      properties: { liked: { type: boolean } }
+    BulletinReactionInput:
+      type: object
+      required: [targetId, targetType, emoji]
+      properties:
+        targetId: { type: string }
+        targetType: { type: string, enum: [post, comment] }
+        emoji: { type: string, nullable: true }
+    AuthoredBookInput:
+      type: object
+      required: [localId, title, body]
+      properties:
+        localId: { type: string }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        body: { type: string, maxLength: 200000 }
+    BulletinUploadInput:
+      type: object
+      required: [contentType, size]
+      properties:
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        size: { type: integer, minimum: 1, maximum: 10485760 }
+    CommunityPerson:
+      type: object
+      required: [id, nickname, avatar]
+      properties:
+        id: { type: string }
+        nickname: { type: string }
+        avatar: { type: string, nullable: true }
+    AuthoredBook:
+      type: object
+      required: [id, title, body, author]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        body: { type: string }
+        author: { $ref: "#/components/schemas/CommunityPerson" }
+        coverUrl: { type: string, nullable: true }
+        cover: { type: string, nullable: true }
+        description: { type: string }
+        genres: { type: array, items: { type: string } }
+        ageRating: { type: string }
+        language: { type: string }
+        completion: { type: string }
+        published: { type: boolean }
+        chapters: { type: array, items: { $ref: "#/components/schemas/WriterChapter" } }
+        publishedAt: { type: string, nullable: true }
+        readCount: { type: integer }
+        likeCount: { type: integer }
+        commentCount: { type: integer }
+        liked: { type: boolean }
+        canEdit: { type: boolean }
+    WriterChapter:
+      type: object
+      required: [id, title, html, status]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, maxLength: 150 }
+        html: { type: string, maxLength: 600000 }
+        status: { type: string, enum: [draft, published] }
+    WriterDocument:
+      type: object
+      required: [title, description, genres, ageRating, language, completion, cover, chapters]
+      properties:
+        title: { type: string, maxLength: 100 }
+        description: { type: string, maxLength: 500 }
+        genres:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items: { type: string, enum: [Roman, Hikaye, Şiir, Fantastik, Bilim Kurgu, Korku, Aşk, Tarihi, Kişisel Gelişim] }
+        ageRating: { type: string, enum: [all, "13", "18"] }
+        language: { type: string, minLength: 2, maxLength: 40 }
+        completion: { type: string, enum: [ongoing, completed] }
+        cover: { type: string, nullable: true }
+        chapters: { type: array, maxItems: 200, items: { $ref: "#/components/schemas/WriterChapter" } }
+    WriterBook:
+      type: object
+      required: [id, localId, document, revision, publication, publishedAt, updatedAt]
+      properties:
+        id: { type: string }
+        localId: { type: string }
+        document: { $ref: "#/components/schemas/WriterDocument" }
+        revision: { type: integer }
+        publication: { type: string, enum: [draft, published] }
+        publishedAt: { type: string, nullable: true }
+        updatedAt: { type: string, nullable: true }
+    WriterSummary:
+      type: object
+      required: [id, localId, title, coverUrl, publication, chapterCount, revision, updatedAt]
+      properties:
+        id: { type: string }
+        localId: { type: string }
+        title: { type: string }
+        coverUrl: { type: string, nullable: true }
+        publication: { type: string, enum: [draft, published] }
+        chapterCount: { type: integer }
+        revision: { type: integer }
+        updatedAt: { type: string, nullable: true }
+    WriterSaveInput:
+      type: object
+      required: [document, expectedRevision, saveId]
+      properties:
+        document: { $ref: "#/components/schemas/WriterDocument" }
+        expectedRevision: { type: integer, minimum: 0 }
+        saveId: { type: string, format: uuid }
+        localId: { type: string, maxLength: 200 }
+    WriterRevisionInput:
+      type: object
+      required: [expectedRevision]
+      properties:
+        expectedRevision: { type: integer, minimum: 0 }
+    WriterMetadata:
+      type: object
+      required: [title, description, genres, ageRating, language, completion, cover]
+      properties:
+        title: { type: string, maxLength: 100 }
+        description: { type: string, maxLength: 500 }
+        genres:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items: { type: string, enum: [Roman, Hikaye, Şiir, Fantastik, Bilim Kurgu, Korku, Aşk, Tarihi, Kişisel Gelişim] }
+        ageRating: { type: string, enum: [all, "13", "18"] }
+        language: { type: string, minLength: 2, maxLength: 40 }
+        completion: { type: string, enum: [ongoing, completed] }
+        cover: { type: string, nullable: true }
+    WriterDeltaInput:
+      type: object
+      required: [expectedRevision, saveId, upserts, deletedChapterIds]
+      properties:
+        expectedRevision: { type: integer, minimum: 1 }
+        saveId: { type: string, format: uuid }
+        metadata: { $ref: "#/components/schemas/WriterMetadata" }
+        upserts: { type: array, maxItems: 200, items: { $ref: "#/components/schemas/WriterChapter" } }
+        deletedChapterIds: { type: array, maxItems: 200, uniqueItems: true, items: { type: string, format: uuid } }
+        chapterOrder:
+          description: Required for additions, deletions or reorder; exact final permutation of chapter IDs.
+          type: array
+          maxItems: 200
+          uniqueItems: true
+          items: { type: string, format: uuid }
+    WriterSaveAck:
+      type: object
+      required: [id, saveId, revision, updatedAt]
+      properties:
+        id: { type: string }
+        saveId: { type: string, format: uuid }
+        revision: { type: integer, minimum: 1 }
+        updatedAt: { type: string, nullable: true }
+    WriterPublicationInput:
+      type: object
+      required: [expectedRevision, action]
+      properties:
+        expectedRevision: { type: integer, minimum: 0 }
+        action: { type: string, enum: [publish, unpublish, publishChapter, draftChapter] }
+        chapterId: { type: string, format: uuid }
+    WriterPreset:
+      type: object
+      required: [id, title, url, cover]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        url: { type: string }
+        cover: { type: string }
+    WriterUpload:
+      type: object
+      required: [id, uploadUrl]
+      properties: { id: { type: string }, uploadUrl: { type: string } }
+    WriterImage:
+      type: object
+      required: [id, url]
+      properties: { id: { type: string }, url: { type: string } }
+    WriterSpellingInput:
+      type: object
+      required: [text]
+      properties: { text: { type: string, maxLength: 10000 } }
+    WriterSpellingIssue:
+      type: object
+      required: [offset, length, word, suggestions]
+      properties:
+        offset: { type: integer }
+        length: { type: integer }
+        word: { type: string }
+        suggestions: { type: array, items: { type: string } }
+    WriterVoiceStatus:
+      type: object
+      required: [available, explanation]
+      properties: { available: { type: boolean }, explanation: { type: string } }
+    WriterVoiceInput:
+      type: object
+      required: [clientId, audioBase64, mimeType, consent]
+      properties:
+        clientId: { type: string, format: uuid }
+        audioBase64: { type: string, maxLength: 12000000 }
+        mimeType: { type: string, enum: [audio/webm, audio/mp4, audio/m4a, audio/wav, audio/ogg] }
+        consent: { type: boolean }
+    WriterLikeInput:
+      type: object
+      required: [liked]
+      properties: { liked: { type: boolean } }
+    WriterCommentInput:
+      type: object
+      required: [clientId, body]
+      properties:
+        clientId: { type: string, format: uuid }
+        body: { type: string, minLength: 1, maxLength: 3000 }
+        chapterId: { type: string, format: uuid, nullable: true }
+    WriterComment:
+      type: object
+      required: [id, author, body, createdAt, chapterId]
+      properties:
+        id: { type: string }
+        author: { $ref: "#/components/schemas/CommunityPerson" }
+        body: { type: string }
+        chapterId: { type: string, nullable: true }
+        createdAt: { type: string }
+    BulletinPhoto:
+      type: object
+      required: [id, url]
+      properties: { id: { type: string }, url: { type: string } }
+    BulletinReaction:
+      type: object
+      required: [emoji, count, selected]
+      properties: { emoji: { type: string }, count: { type: integer }, selected: { type: boolean } }
+    BulletinReactionPerson:
+      type: object
+      required: [person, emoji]
+      properties: { person: { $ref: "#/components/schemas/CommunityPerson" }, emoji: { type: string } }
+    BulletinInput:
+      type: object
+      required: [clientId, body, photoIds]
+      properties:
+        clientId: { type: string, format: uuid }
+        body: { type: string, maxLength: 1000 }
+        photoIds: { type: array, maxItems: 4, items: { type: string, format: uuid } }
+        bookId: { type: string, nullable: true }
+    Bulletin:
+      type: object
+      required: [id, author, body, photos, book, createdAt, updatedAt, likeCount, liked, commentCount, reactions, canEdit]
+      properties:
+        id: { type: string }
+        author: { $ref: "#/components/schemas/CommunityPerson" }
+        body: { type: string }
+        photos: { type: array, items: { $ref: "#/components/schemas/BulletinPhoto" } }
+        book: { allOf: [{ $ref: "#/components/schemas/AuthoredBook" }], nullable: true }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+        likeCount: { type: integer }
+        liked: { type: boolean }
+        commentCount: { type: integer }
+        reactions: { type: array, items: { $ref: "#/components/schemas/BulletinReaction" } }
+        canEdit: { type: boolean }
+    BulletinFeed:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Bulletin" } }
+        nextCursor: { type: string, nullable: true }
+    BulletinCommentInput:
+      type: object
+      required: [body]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 1000 }
+        parentId: { type: string, nullable: true }
+    BulletinComment:
+      type: object
+      required: [id, postId, author, parentId, depth, body, deleted, createdAt, canEdit, canDelete, reactions]
+      properties:
+        id: { type: string }
+        postId: { type: string }
+        author: { $ref: "#/components/schemas/CommunityPerson" }
+        parentId: { type: string, nullable: true }
+        depth: { type: integer, minimum: 1, maximum: 3 }
+        body: { type: string }
+        deleted: { type: boolean }
+        createdAt: { type: string }
+        canEdit: { type: boolean }
+        canDelete: { type: boolean }
+        reactions: { type: array, items: { $ref: "#/components/schemas/BulletinReaction" } }
+    BulletinNotification:
+      type: object
+      required: [id, body, postId, commentId, read, createdAt]
+      properties:
+        id: { type: string }
+        body: { type: string }
+        postId: { type: string }
+        commentId: { type: string, nullable: true }
+        read: { type: boolean }
+        createdAt: { type: string }
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
